@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Pascal AR — มี/ไม่มีมาร์กเกอร์ก็ได้</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
+<style>
+  :root{--panel:rgba(0,0,0,.84);--border:rgba(255,255,255,.15);--accent:#fbbf24}
+  *{box-sizing:border-box} body{margin:0;overflow:hidden;background:#0b1020;color:#fff;
+    font-family:'Noto Sans Thai',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  #ar-scene{position:fixed;inset:0;z-index:1}
+  .ui{position:fixed;inset:0;z-index:5;pointer-events:none}
+  .panel{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .info{position:absolute;left:12px;right:12px;top:12px;padding:10px}
+  .ctrl{position:absolute;left:12px;right:12px;bottom:12px;padding:12px}
+  .row{margin:8px 0} .label{font-weight:700;color:var(--accent);margin-bottom:4px;display:block}
+  .sliderrow{display:flex;gap:10px;align-items:center}
+  input[type="range"]{flex:1;appearance:none;height:8px;border-radius:6px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);outline:none}
+  input[type="range"]::-webkit-slider-thumb{appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer}
+  .val{min-width:70px;text-align:center;background:rgba(255,255,255,.08);padding:6px 10px;border-radius:8px;font-weight:700;font-size:12px}
+  .calc{background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.35);border-radius:10px;padding:8px;margin-top:6px}
+  .calc .line{display:flex;justify-content:space-between;margin:3px 0;font-family:ui-monospace,Consolas,Menlo,monospace}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .btn{pointer-events:auto;background:#111827;border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .hidden{opacity:0;transform:translateY(6px);pointer-events:none}
+  dialog{border:none;border-radius:12px;padding:0;background:#0b1020;color:#fff;max-width:92vw}
+  dialog .wrap{padding:14px}
+  .hint{opacity:.9;font-size:12px;margin-top:6px}
+  @media(min-width:900px){ .info,.ctrl{left:24px;right:auto;width:400px} }
+</style>
+</head>
+<body>
+  <div class="ui">
+    <div class="panel info">
+      <h3 style="margin:0 0 4px;font-size:16px">การสาธิตกฎของปาสคาล (AR)</h3>
+      <div style="font-size:13px">เลือกใช้ได้ทั้งโหมดมาร์กเกอร์ HIRO หรือโหมดสาธิตไม่มีมาร์กเกอร์</div>
+      <div class="btnrow">
+        <button id="btnShowMarker" class="btn">🖨️ แสดง HIRO marker</button>
+        <button id="btnDemo" class="btn">🧪 โหมดสาธิต (ไม่มีมาร์กเกอร์)</button>
+        <button id="btnAR" class="btn">🔶 กลับโหมด AR + HIRO</button>
+      </div>
+      <div class="hint">แนะนำ: เปิดด้วย Chrome/Samsung Internet ผ่าน HTTPS หรือ localhost และอนุญาตกล้อง</div>
+    </div>
+
+    <div class="panel ctrl" id="ctrlPanel">
+      <div class="row"><label class="label">แรงที่กระทำ (F₁)</label>
+        <div class="sliderrow"><input type="range" id="F1" min="10" max="200" step="5" value="60"><div class="val" id="F1v">60 N</div></div>
+      </div>
+      <div class="row"><label class="label">พื้นที่พิสตันเล็ก (A₁)</label>
+        <div class="sliderrow"><input type="range" id="A1" min="0.10" max="0.50" step="0.01" value="0.28"><div class="val" id="A1v">0.28 m²</div></div>
+      </div>
+      <div class="row"><label class="label">พื้นที่พิสตันใหญ่ (A₂)</label>
+        <div class="sliderrow"><input type="range" id="A2" min="0.50" max="2.00" step="0.01" value="1.13"><div class="val" id="A2v">1.13 m²</div></div>
+      </div>
+      <div class="calc">
+        <div class="line"><span>ความดัน (P):</span><span id="vP">—</span></div>
+        <div class="line"><span>แรงขาออก (F₂):</span><span id="vF2">—</span></div>
+        <div class="line"><span>ประโยชน์เชิงกล (MA):</span><span id="vMA">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="dlg">
+    <div class="wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <strong>HIRO marker (ส่องอันนี้)</strong>
+        <button class="btn" onclick="dlg.close()">ปิด</button>
+      </div>
+      <div class="hint">เปิดภาพนี้บนจออีกเครื่องหรือปริ๊นต์ก็ได้ ให้ marker อยู่เต็มเฟรม กลับหัวไม่ได้นะ</div>
+      <img alt="HIRO marker" style="width:100%;max-width:520px;border-radius:10px;margin-top:8px"
+           src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg">
+    </div>
+  </dialog>
+
+  <a-scene id="ar-scene" embedded renderer="antialias:true; colorManagement:true; sortObjects:true"
+    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled:false; patternRatio:0.8; trackingMethod: best; sourceWidth:1920; sourceHeight:1080; displayWidth:1280; displayHeight:720"
+    vr-mode-ui="enabled:false" loading-screen="enabled:false">
+
+    <!-- โหมด AR (ต้องใช้มาร์กเกอร์) -->
+    <a-marker preset="hiro" id="marker" smooth="true" smoothCount="7" smoothTolerance="0.01" smoothThreshold="10">
+      <a-entity id="markerHolder"></a-entity>
+    </a-marker>
+
+    <!-- โหมดสาธิต (ไม่มีมาร์กเกอร์) -->
+    <a-entity id="demoAnchor" visible="false" position="0 0 -1.2"></a-entity>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+<script>
+/* ---------- สร้างโมเดลเป็นฟังก์ชัน เพื่อง่ายต่อการย้ายระหว่างโหมด ---------- */
+const buildRigInto = (parent) => {
+  parent.innerHTML = `
+    <a-entity class="rig" position="0 0 0" scale="0.35 0.35 0.35">
+      <a-box position="0 -0.3 0" width="2" height="0.08" depth="1.2" color="#374151"></a-box>
+
+      <a-entity class="left" position="-0.75 0 0">
+        <a-cylinder class="leftWall" radius="0.25" height="1.2" color="#3b82f6"></a-cylinder>
+        <a-cylinder class="leftPiston" position="0 -0.2 0" radius="0.235" height="0.1" color="#fbbf24"></a-cylinder>
+        <a-cylinder class="leftFluid"  position="0 -0.5 0" radius="0.22"  height="0.65" color="#06b6d4" opacity="0.7"></a-cylinder>
+        <a-cone class="arrow" position="0 0.5 0" radius-bottom="0.08" radius-top="0" height="0.2" color="#ef4444" rotation="0 0 180"></a-cone>
+      </a-entity>
+
+      <a-entity class="right" position="0.75 0 0">
+        <a-cylinder class="rightWall" radius="0.45" height="1.2" color="#3b82f6"></a-cylinder>
+        <a-cylinder class="rightPiston" position="0 -0.2 0" radius="0.43" height="0.1" color="#fbbf24"></a-cylinder>
+        <a-cylinder class="rightFluid"  position="0 -0.5 0" radius="0.40" height="0.65" color="#06b6d4" opacity="0.7"></a-cylinder>
+        <a-box class="load" position="0 0.45 0" width="0.6" height="0.25" depth="0.6" color="#7c3aed"></a-box>
+      </a-entity>
+
+      <a-cylinder position="0 -0.65 0" radius="0.04" height="1.5" rotation="0 0 90" color="#6b7280"></a-cylinder>
+      <a-text position="-0.75 -1.0 0" value="Small Piston\nพิสตันเล็ก" align="center" color="#fbbf24" scale="0.45 0.45 0.45"></a-text>
+      <a-text position="0.75 -1.0 0" value="Large Piston\nพิสตันใหญ่" align="center" color="#fbbf24" scale="0.45 0.45 0.45"></a-text>
+
+      <a-light type="ambient" color="#404040"></a-light>
+      <a-light type="directional" position="2 4 2" color="#ffffff" intensity="1"></a-light>
+    </a-entity>
+  `;
+  // คืนอ้างอิง element ต่าง ๆ
+  const q = (sel)=>parent.querySelector(sel);
+  return {
+    leftWall: q('.leftWall'), leftPiston: q('.leftPiston'), leftFluid: q('.leftFluid'), arrow: q('.arrow'),
+    rightWall: q('.rightWall'), rightPiston: q('.rightPiston'), rightFluid: q('.rightFluid'), load: q('.load')
+  };
+};
+
+/* ---------- สถานะ + ฟิสิกส์ ---------- */
+const state={F1:60,A1:0.28,A2:1.13, arReady:false, mode:'ar', yL:-0.2,yR:-0.2, yLTarget:-0.2,yRTarget:-0.2};
+const el = (id)=>document.getElementById(id);
+const clamp=(v,mi,ma)=>Math.min(ma,Math.max(mi,v));
+const rFromArea=A=>Math.sqrt(A/Math.PI), lerp=(a,b,t)=>a+(b-a)*t;
+const halfCyl=1.2/2, halfP=0.1/2, minY=-halfCyl+halfP, maxY=halfCyl-halfP;
+
+let refs = null; // อ้างอิงโมเดลปัจจุบัน (ตามโหมด)
+function attachToAR(){ state.mode='ar'; el('demoAnchor').setAttribute('visible','false'); refs = buildRigInto(el('markerHolder')); }
+function attachToDemo(){ state.mode='demo'; el('demoAnchor').setAttribute('visible','true'); refs = buildRigInto(el('demoAnchor')); state.arReady = true; }
+
+function updateUI(){
+  const P=state.F1/state.A1, F2=P*state.A2, MA=state.A2/state.A1;
+  el('F1v').textContent=`${state.F1} N`; el('A1v').textContent=`${state.A1.toFixed(2)} m²`; el('A2v').textContent=`${state.A2.toFixed(2)} m²`;
+  el('vP').textContent=`P = ${state.F1} ÷ ${state.A1.toFixed(2)} = ${P.toFixed(0)} Pa`;
+  el('vF2').textContent=`F₂ = ${P.toFixed(0)} × ${state.A2.toFixed(2)} = ${F2.toFixed(0)} N`;
+  el('vMA').textContent=`MA = ${state.A2.toFixed(2)} ÷ ${state.A1.toFixed(2)} = ${MA.toFixed(1)}×`;
+}
+function recalcTargets(){ const P=state.F1/state.A1, F2=P*state.A2;
+  state.yLTarget=clamp(-0.2-(state.F1/950),minY,maxY); state.yRTarget=clamp(-0.2+(F2/1500),minY,maxY); }
+function updateRadii(){ if(!state.arReady || !refs) return; const rS=rFromArea(state.A1), rL=rFromArea(state.A2);
+  refs.leftWall.setAttribute('radius',rS); refs.leftPiston.setAttribute('radius',rS*0.94); refs.leftFluid.setAttribute('radius',rS*0.88);
+  refs.rightWall.setAttribute('radius',rL); refs.rightPiston.setAttribute('radius',rL*0.94); refs.rightFluid.setAttribute('radius',rL*0.88);
+}
+function applyPistonPositions(){ if(!refs) return;
+  refs.leftPiston.setAttribute('position',`0 ${state.yL.toFixed(3)} 0`);
+  refs.rightPiston.setAttribute('position',`0 ${state.yR.toFixed(3)} 0`);
+  refs.leftFluid.setAttribute('position',`0 ${(state.yL-0.3).toFixed(3)} 0`);
+  refs.rightFluid.setAttribute('position',`0 ${(state.yR-0.3).toFixed(3)} 0`);
+  refs.load.setAttribute('position',`0 ${(state.yR+0.3).toFixed(3)} 0`);
+}
+// ลูกศร “ไม่ทะลุพิสตัน”
+function applyArrow(timeMs){ if(!refs) return; const arrow=refs.arrow; const arrowH=0.16+(state.F1/700); arrow.setAttribute('height',arrowH.toFixed(3));
+  const safetyGap=0.06, pistonTop=state.yL+halfP, minCenter=pistonTop+safetyGap+(arrowH/2);
+  const amp=Math.min(Math.max(0.04+state.F1/800,0.04),0.22), w=2.0+state.F1/120, t=timeMs/1000;
+  const centerMax=maxY+0.14, baseCenter=Math.min(minCenter+0.05,centerMax);
+  const center=Math.min(baseCenter+amp*Math.max(0,Math.sin(w*t)),centerMax);
+  arrow.setAttribute('position',`0 ${center.toFixed(3)} 0`);
+}
+function animate(now){
+  if(state.arReady){ state.yL=lerp(state.yL,state.yLTarget,0.15); state.yR=lerp(state.yR,state.yRTarget,0.12);
+    applyPistonPositions(); applyArrow(now); }
+  requestAnimationFrame(animate);
+}
+
+/* ---------- UI / เหตุการณ์ ---------- */
+const dlg = el('dlg');
+document.getElementById('btnShowMarker').onclick=()=>dlg.showModal();
+document.getElementById('btnDemo').onclick=()=>{ attachToDemo(); updateRadii(); recalcTargets(); };
+document.getElementById('btnAR').onclick=()=>{ attachToAR(); state.arReady=false; updateRadii(); recalcTargets(); };
+
+el('F1').addEventListener('input',e=>{state.F1=parseFloat(e.target.value);updateUI();recalcTargets();});
+el('A1').addEventListener('input',e=>{state.A1=parseFloat(e.target.value);updateUI();updateRadii();recalcTargets();});
+el('A2').addEventListener('input',e=>{state.A2=parseFloat(e.target.value);updateUI();updateRadii();recalcTargets();});
+
+const marker = document.getElementById('marker');
+marker.addEventListener('markerFound', ()=>{ if(state.mode==='ar'){ state.arReady=true; updateRadii(); recalcTargets(); }});
+marker.addEventListener('markerLost',  ()=>{ if(state.mode==='ar'){ state.arReady=false; }});
+
+/* ---------- เริ่มต้น ---------- */
+attachToAR();          // เริ่มที่โหมด AR
+updateUI(); recalcTargets(); animate(0);
+</script>
+</body>
+</html>
