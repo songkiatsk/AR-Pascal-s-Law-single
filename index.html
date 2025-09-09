@@ -1,195 +1,226 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>Pascal AR — มี/ไม่มีมาร์กเกอร์ก็ได้</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
-<style>
-  :root{--panel:rgba(0,0,0,.84);--border:rgba(255,255,255,.15);--accent:#fbbf24}
-  *{box-sizing:border-box} body{margin:0;overflow:hidden;background:#0b1020;color:#fff;
-    font-family:'Noto Sans Thai',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  #ar-scene{position:fixed;inset:0;z-index:1}
-  .ui{position:fixed;inset:0;z-index:5;pointer-events:none}
-  .panel{pointer-events:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
-  .info{position:absolute;left:12px;right:12px;top:12px;padding:10px}
-  .ctrl{position:absolute;left:12px;right:12px;bottom:12px;padding:12px}
-  .row{margin:8px 0} .label{font-weight:700;color:var(--accent);margin-bottom:4px;display:block}
-  .sliderrow{display:flex;gap:10px;align-items:center}
-  input[type="range"]{flex:1;appearance:none;height:8px;border-radius:6px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);outline:none}
-  input[type="range"]::-webkit-slider-thumb{appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:pointer}
-  .val{min-width:70px;text-align:center;background:rgba(255,255,255,.08);padding:6px 10px;border-radius:8px;font-weight:700;font-size:12px}
-  .calc{background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.35);border-radius:10px;padding:8px;margin-top:6px}
-  .calc .line{display:flex;justify-content:space-between;margin:3px 0;font-family:ui-monospace,Consolas,Menlo,monospace}
-  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .btn{pointer-events:auto;background:#111827;border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
-  .btn:active{transform:translateY(1px)}
-  .hidden{opacity:0;transform:translateY(6px);pointer-events:none}
-  dialog{border:none;border-radius:12px;padding:0;background:#0b1020;color:#fff;max-width:92vw}
-  dialog .wrap{padding:14px}
-  .hint{opacity:.9;font-size:12px;margin-top:6px}
-  @media(min-width:900px){ .info,.ctrl{left:24px;right:auto;width:400px} }
-</style>
+  <meta charset="utf-8" />
+  <title>Hydraulic pipe – AR (F1, A1, A2, P, F2)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <!-- A-Frame & AR.js CDN -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+  <style>
+    html,body{margin:0;height:100%;font-family:system-ui,Segoe UI,TH Sarabun New,Arial}
+    .hud{position:fixed;left:8px;right:8px;bottom:8px;z-index:5;
+         background:rgba(20,22,25,.7);backdrop-filter:blur(6px);
+         color:#fff;border-radius:14px;padding:10px 12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .row>div{display:flex;gap:6px;align-items:center}
+    input[type=range]{width:140px}
+    .btn{padding:6px 10px;border-radius:10px;border:1px solid #666;background:#2b2f36;color:#fff;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .kpi{font-variant-numeric:tabular-nums}
+    .formula{position:fixed;top:8px;left:8px;z-index:5;background:rgba(255,255,255,.9);color:#111;
+             padding:10px 12px;border-radius:12px;display:none;max-width:92vw}
+    .formula code{background:#f1f3f5;padding:2px 6px;border-radius:8px}
+    .badge{position:fixed;top:8px;right:8px;z-index:5;background:#0ea5e9;color:#fff;padding:6px 10px;border-radius:999px;font-weight:600}
+    .small{font-size:12px;opacity:.8}
+  </style>
 </head>
 <body>
-  <div class="ui">
-    <div class="panel info">
-      <h3 style="margin:0 0 4px;font-size:16px">การสาธิตกฎของปาสคาล (AR)</h3>
-      <div style="font-size:13px">เลือกใช้ได้ทั้งโหมดมาร์กเกอร์ HIRO หรือโหมดสาธิตไม่มีมาร์กเกอร์</div>
-      <div class="btnrow">
-        <button id="btnShowMarker" class="btn">🖨️ แสดง HIRO marker</button>
-        <button id="btnDemo" class="btn">🧪 โหมดสาธิต (ไม่มีมาร์กเกอร์)</button>
-        <button id="btnAR" class="btn">🔶 กลับโหมด AR + HIRO</button>
-      </div>
-      <div class="hint">แนะนำ: เปิดด้วย Chrome/Samsung Internet ผ่าน HTTPS หรือ localhost และอนุญาตกล้อง</div>
-    </div>
+  <div class="badge">Hydraulic pipe</div>
 
-    <div class="panel ctrl" id="ctrlPanel">
-      <div class="row"><label class="label">แรงที่กระทำ (F₁)</label>
-        <div class="sliderrow"><input type="range" id="F1" min="10" max="200" step="5" value="60"><div class="val" id="F1v">60 N</div></div>
-      </div>
-      <div class="row"><label class="label">พื้นที่พิสตันเล็ก (A₁)</label>
-        <div class="sliderrow"><input type="range" id="A1" min="0.10" max="0.50" step="0.01" value="0.28"><div class="val" id="A1v">0.28 m²</div></div>
-      </div>
-      <div class="row"><label class="label">พื้นที่พิสตันใหญ่ (A₂)</label>
-        <div class="sliderrow"><input type="range" id="A2" min="0.50" max="2.00" step="0.01" value="1.13"><div class="val" id="A2v">1.13 m²</div></div>
-      </div>
-      <div class="calc">
-        <div class="line"><span>ความดัน (P):</span><span id="vP">—</span></div>
-        <div class="line"><span>แรงขาออก (F₂):</span><span id="vF2">—</span></div>
-        <div class="line"><span>ประโยชน์เชิงกล (MA):</span><span id="vMA">—</span></div>
-      </div>
+  <!-- Formula panel -->
+  <div id="formula" class="formula">
+    <div><strong>สูตรสำคัญ</strong></div>
+    <div class="small">กฎของพาสคัล: แรงดันส่งผ่านเท่ากันทั่วของเหลว</div>
+    <div style="margin-top:6px">
+      <div><code>P = F/A</code></div>
+      <div><code>F₂ = P·A₂ = F₁·(A₂/A₁)</code></div>
+      <div><code>Δy₂ = Δy₁·(A₁/A₂)</code> (อนุรักษ์ปริมาตร)</div>
     </div>
   </div>
 
-  <dialog id="dlg">
-    <div class="wrap">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <strong>HIRO marker (ส่องอันนี้)</strong>
-        <button class="btn" onclick="dlg.close()">ปิด</button>
-      </div>
-      <div class="hint">เปิดภาพนี้บนจออีกเครื่องหรือปริ๊นต์ก็ได้ ให้ marker อยู่เต็มเฟรม กลับหัวไม่ได้นะ</div>
-      <img alt="HIRO marker" style="width:100%;max-width:520px;border-radius:10px;margin-top:8px"
-           src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg">
-    </div>
-  </dialog>
+  <!-- AR Scene -->
+  <a-scene
+    embedded
+    renderer="antialias:true;colorManagement:true"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+    <a-assets></a-assets>
 
-  <a-scene id="ar-scene" embedded renderer="antialias:true; colorManagement:true; sortObjects:true"
-    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled:false; patternRatio:0.8; trackingMethod: best; sourceWidth:1920; sourceHeight:1080; displayWidth:1280; displayHeight:720"
-    vr-mode-ui="enabled:false" loading-screen="enabled:false">
+    <!-- Marker (ใช้ hiro; บน MyWebAR เปลี่ยนเป็น marker ของครูได้) -->
+    <a-marker preset="hiro">
+      <!-- พื้นอ้างอิง -->
+      <a-plane rotation="-90 0 0" width="2" height="2" color="#e5e7eb" position="0 0 0"></a-plane>
 
-    <!-- โหมด AR (ต้องใช้มาร์กเกอร์) -->
-    <a-marker preset="hiro" id="marker" smooth="true" smoothCount="7" smoothTolerance="0.01" smoothThreshold="10">
-      <a-entity id="markerHolder"></a-entity>
+      <!-- ป้ายชื่อ -->
+      <a-entity position="0 0.15 0.7" rotation="-90 0 0">
+        <a-text value="Hydraulic pipe" align="center" width="2.2" color="#111"></a-text>
+      </a-entity>
+
+      <!-- ชุดท่อ U เชื่อมถึงกัน (กระบอกซ้าย-ขวา) -->
+      <a-entity id="rig" position="0 0.02 0">
+        <!-- กระบอกเล็ก (ซ้าย) -->
+        <a-cylinder id="cylSmall" position="-0.35 0.12 0" radius="0.07" height="0.24" color="#cbd5e1"></a-cylinder>
+        <!-- กระบอกใหญ่ (ขวา) -->
+        <a-cylinder id="cylLarge" position="0.35 0.16 0" radius="0.12" height="0.32" color="#cbd5e1"></a-cylinder>
+
+        <!-- ท่อฐานเชื่อม -->
+        <a-box position="0 0.02 0" depth="0.12" width="0.7" height="0.04" color="#cbd5e1"></a-box>
+
+        <!-- ของเหลว (น้ำสีฟ้า) -->
+        <a-entity id="fluid">
+          <!-- ฐานท่อ -->
+          <a-box id="fluidBase" position="0 0.04 0" depth="0.10" width="0.68" height="0.035" color="#60a5fa" opacity="0.85"></a-box>
+          <!-- แขนซ้ายขึ้นในกระบอกเล็ก -->
+          <a-box id="fluidLeft" position="-0.35 0.08 0" depth="0.10" width="0.12" height="0.12" color="#60a5fa" opacity="0.85"></a-box>
+          <!-- แขนขวาขึ้นในกระบอกใหญ่ -->
+          <a-box id="fluidRight" position="0.35 0.10 0" depth="0.10" width="0.20" height="0.16" color="#60a5fa" opacity="0.85"></a-box>
+        </a-entity>
+
+        <!-- ลูกสูบเล็ก -->
+        <a-cylinder id="pistonSmall" position="-0.35 0.24 0" radius="0.071" height="0.015" color="#111827"></a-cylinder>
+        <!-- ลูกศรแรงบนลูกสูบเล็ก -->
+        <a-entity id="arrow" position="-0.35 0.32 0" rotation="-90 0 0">
+          <a-cone radius-bottom="0.02" radius-top="0" height="0.06" color="#ef4444" position="0 0.03 0"></a-cone>
+          <a-cylinder radius="0.007" height="0.10" color="#ef4444" position="0 0.10 0"></a-cylinder>
+        </a-entity>
+
+        <!-- ลูกสูบใหญ่ -->
+        <a-cylinder id="pistonLarge" position="0.35 0.30 0" radius="0.121" height="0.015" color="#111827"></a-cylinder>
+      </a-entity>
+
+      <!-- กล้องของ marker -->
+      <a-entity camera></a-entity>
     </a-marker>
 
-    <!-- โหมดสาธิต (ไม่มีมาร์กเกอร์) -->
-    <a-entity id="demoAnchor" visible="false" position="0 0 -1.2"></a-entity>
-
+    <!-- กล้อง fallback -->
     <a-entity camera></a-entity>
   </a-scene>
 
-<script>
-/* ---------- สร้างโมเดลเป็นฟังก์ชัน เพื่อง่ายต่อการย้ายระหว่างโหมด ---------- */
-const buildRigInto = (parent) => {
-  parent.innerHTML = `
-    <a-entity class="rig" position="0 0 0" scale="0.35 0.35 0.35">
-      <a-box position="0 -0.3 0" width="2" height="0.08" depth="1.2" color="#374151"></a-box>
+  <!-- HUD Controls -->
+  <div class="hud">
+    <div class="row">
+      <div><label>F1 (N)</label><input id="f1" type="range" min="0" max="300" step="1" value="100"><span id="f1v" class="kpi">100</span></div>
+      <div><label>A1 (cm²)</label><input id="a1" type="range" min="1" max="12" step="0.5" value="3"><span id="a1v" class="kpi">3.0</span></div>
+      <div><label>A2 (cm²)</label><input id="a2" type="range" min="5" max="120" step="1" value="40"><span id="a2v" class="kpi">40</span></div>
+      <div class="kpi">P = <span id="pv">33.33</span> N/cm²</div>
+      <div class="kpi">F₂ = <span id="f2v">1333</span> N</div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="toggleFormula" class="btn">Show Formula</button>
+      <button id="resetBtn" class="btn">Reset</button>
+      <button id="wireBtn" class="btn">Toggle Wireframe</button>
+      <span class="small">* ลูกศรมี “ล็อกขั้นต่ำ” ไม่ให้จมทะลุลูกสูบ</span>
+    </div>
+  </div>
 
-      <a-entity class="left" position="-0.75 0 0">
-        <a-cylinder class="leftWall" radius="0.25" height="1.2" color="#3b82f6"></a-cylinder>
-        <a-cylinder class="leftPiston" position="0 -0.2 0" radius="0.235" height="0.1" color="#fbbf24"></a-cylinder>
-        <a-cylinder class="leftFluid"  position="0 -0.5 0" radius="0.22"  height="0.65" color="#06b6d4" opacity="0.7"></a-cylinder>
-        <a-cone class="arrow" position="0 0.5 0" radius-bottom="0.08" radius-top="0" height="0.2" color="#ef4444" rotation="0 0 180"></a-cone>
-      </a-entity>
+  <script>
+    // UI elements
+    const f1 = document.getElementById('f1');
+    const a1 = document.getElementById('a1');
+    const a2 = document.getElementById('a2');
+    const f1v = document.getElementById('f1v');
+    const a1v = document.getElementById('a1v');
+    const a2v = document.getElementById('a2v');
+    const pv  = document.getElementById('pv');
+    const f2v = document.getElementById('f2v');
+    const formula = document.getElementById('formula');
+    const toggleFormula = document.getElementById('toggleFormula');
+    const resetBtn = document.getElementById('resetBtn');
+    const wireBtn = document.getElementById('wireBtn');
 
-      <a-entity class="right" position="0.75 0 0">
-        <a-cylinder class="rightWall" radius="0.45" height="1.2" color="#3b82f6"></a-cylinder>
-        <a-cylinder class="rightPiston" position="0 -0.2 0" radius="0.43" height="0.1" color="#fbbf24"></a-cylinder>
-        <a-cylinder class="rightFluid"  position="0 -0.5 0" radius="0.40" height="0.65" color="#06b6d4" opacity="0.7"></a-cylinder>
-        <a-box class="load" position="0 0.45 0" width="0.6" height="0.25" depth="0.6" color="#7c3aed"></a-box>
-      </a-entity>
+    // 3D entities
+    const pistonSmall = () => document.querySelector('#pistonSmall');
+    const pistonLarge = () => document.querySelector('#pistonLarge');
+    const fluidLeft   = () => document.querySelector('#fluidLeft');
+    const fluidRight  = () => document.querySelector('#fluidRight');
+    const arrow       = () => document.querySelector('#arrow');
+    const shellParts  = ['#cylSmall','#cylLarge','a-box[width="0.7"]'].map(q=>document.querySelector(q));
 
-      <a-cylinder position="0 -0.65 0" radius="0.04" height="1.5" rotation="0 0 90" color="#6b7280"></a-cylinder>
-      <a-text position="-0.75 -1.0 0" value="Small Piston\nพิสตันเล็ก" align="center" color="#fbbf24" scale="0.45 0.45 0.45"></a-text>
-      <a-text position="0.75 -1.0 0" value="Large Piston\nพิสตันใหญ่" align="center" color="#fbbf24" scale="0.45 0.45 0.45"></a-text>
+    // Base positions (meters in A-Frame units)
+    const base = {
+      ySmall: 0.24,
+      yLarge: 0.30,
+      fluidLeftY: 0.08,
+      fluidRightY: 0.10,
+      arrowYmin: 0.28, // lock-min above small piston
+      arrowY0: 0.32
+    };
 
-      <a-light type="ambient" color="#404040"></a-light>
-      <a-light type="directional" position="2 4 2" color="#ffffff" intensity="1"></a-light>
-    </a-entity>
-  `;
-  // คืนอ้างอิง element ต่าง ๆ
-  const q = (sel)=>parent.querySelector(sel);
-  return {
-    leftWall: q('.leftWall'), leftPiston: q('.leftPiston'), leftFluid: q('.leftFluid'), arrow: q('.arrow'),
-    rightWall: q('.rightWall'), rightPiston: q('.rightPiston'), rightFluid: q('.rightFluid'), load: q('.load')
-  };
-};
+    function update() {
+      const F1 = Number(f1.value);
+      const A1 = Number(a1.value); // cm^2
+      const A2 = Number(a2.value); // cm^2
 
-/* ---------- สถานะ + ฟิสิกส์ ---------- */
-const state={F1:60,A1:0.28,A2:1.13, arReady:false, mode:'ar', yL:-0.2,yR:-0.2, yLTarget:-0.2,yRTarget:-0.2};
-const el = (id)=>document.getElementById(id);
-const clamp=(v,mi,ma)=>Math.min(ma,Math.max(mi,v));
-const rFromArea=A=>Math.sqrt(A/Math.PI), lerp=(a,b,t)=>a+(b-a)*t;
-const halfCyl=1.2/2, halfP=0.1/2, minY=-halfCyl+halfP, maxY=halfCyl-halfP;
+      // Display values
+      f1v.textContent = F1.toFixed(0);
+      a1v.textContent = A1.toFixed(1);
+      a2v.textContent = A2.toFixed(0);
 
-let refs = null; // อ้างอิงโมเดลปัจจุบัน (ตามโหมด)
-function attachToAR(){ state.mode='ar'; el('demoAnchor').setAttribute('visible','false'); refs = buildRigInto(el('markerHolder')); }
-function attachToDemo(){ state.mode='demo'; el('demoAnchor').setAttribute('visible','true'); refs = buildRigInto(el('demoAnchor')); state.arReady = true; }
+      // Physics (scaled for visualization)
+      const P = (A1>0)? (F1/A1) : 0;          // N/cm^2
+      const F2 = P * A2;                      // N
+      pv.textContent  = P.toFixed(2);
+      f2v.textContent = Math.round(F2);
 
-function updateUI(){
-  const P=state.F1/state.A1, F2=P*state.A2, MA=state.A2/state.A1;
-  el('F1v').textContent=`${state.F1} N`; el('A1v').textContent=`${state.A1.toFixed(2)} m²`; el('A2v').textContent=`${state.A2.toFixed(2)} m²`;
-  el('vP').textContent=`P = ${state.F1} ÷ ${state.A1.toFixed(2)} = ${P.toFixed(0)} Pa`;
-  el('vF2').textContent=`F₂ = ${P.toFixed(0)} × ${state.A2.toFixed(2)} = ${F2.toFixed(0)} N`;
-  el('vMA').textContent=`MA = ${state.A2.toFixed(2)} ÷ ${state.A1.toFixed(2)} = ${MA.toFixed(1)}×`;
-}
-function recalcTargets(){ const P=state.F1/state.A1, F2=P*state.A2;
-  state.yLTarget=clamp(-0.2-(state.F1/950),minY,maxY); state.yRTarget=clamp(-0.2+(F2/1500),minY,maxY); }
-function updateRadii(){ if(!state.arReady || !refs) return; const rS=rFromArea(state.A1), rL=rFromArea(state.A2);
-  refs.leftWall.setAttribute('radius',rS); refs.leftPiston.setAttribute('radius',rS*0.94); refs.leftFluid.setAttribute('radius',rS*0.88);
-  refs.rightWall.setAttribute('radius',rL); refs.rightPiston.setAttribute('radius',rL*0.94); refs.rightFluid.setAttribute('radius',rL*0.88);
-}
-function applyPistonPositions(){ if(!refs) return;
-  refs.leftPiston.setAttribute('position',`0 ${state.yL.toFixed(3)} 0`);
-  refs.rightPiston.setAttribute('position',`0 ${state.yR.toFixed(3)} 0`);
-  refs.leftFluid.setAttribute('position',`0 ${(state.yL-0.3).toFixed(3)} 0`);
-  refs.rightFluid.setAttribute('position',`0 ${(state.yR-0.3).toFixed(3)} 0`);
-  refs.load.setAttribute('position',`0 ${(state.yR+0.3).toFixed(3)} 0`);
-}
-// ลูกศร “ไม่ทะลุพิสตัน”
-function applyArrow(timeMs){ if(!refs) return; const arrow=refs.arrow; const arrowH=0.16+(state.F1/700); arrow.setAttribute('height',arrowH.toFixed(3));
-  const safetyGap=0.06, pistonTop=state.yL+halfP, minCenter=pistonTop+safetyGap+(arrowH/2);
-  const amp=Math.min(Math.max(0.04+state.F1/800,0.04),0.22), w=2.0+state.F1/120, t=timeMs/1000;
-  const centerMax=maxY+0.14, baseCenter=Math.min(minCenter+0.05,centerMax);
-  const center=Math.min(baseCenter+amp*Math.max(0,Math.sin(w*t)),centerMax);
-  arrow.setAttribute('position',`0 ${center.toFixed(3)} 0`);
-}
-function animate(now){
-  if(state.arReady){ state.yL=lerp(state.yL,state.yLTarget,0.15); state.yR=lerp(state.yR,state.yRTarget,0.12);
-    applyPistonPositions(); applyArrow(now); }
-  requestAnimationFrame(animate);
-}
+      // Visual displacement (arbitrary scale that looks good in AR)
+      // small piston down ~ proportional to F1 and inversely to A1
+      const dy1 = Math.min(0.08, F1/(A1*900));     // <= 8 cm in scene
+      const dy2 = dy1 * (A1/A2);                   // large piston up
 
-/* ---------- UI / เหตุการณ์ ---------- */
-const dlg = el('dlg');
-document.getElementById('btnShowMarker').onclick=()=>dlg.showModal();
-document.getElementById('btnDemo').onclick=()=>{ attachToDemo(); updateRadii(); recalcTargets(); };
-document.getElementById('btnAR').onclick=()=>{ attachToAR(); state.arReady=false; updateRadii(); recalcTargets(); };
+      // Update pistons
+      const ySmall = base.ySmall - dy1;
+      const yLarge = base.yLarge + dy2;
+      pistonSmall().setAttribute('position', {x:-0.35, y:ySmall, z:0});
+      pistonLarge().setAttribute('position', {x: 0.35, y:yLarge, z:0});
 
-el('F1').addEventListener('input',e=>{state.F1=parseFloat(e.target.value);updateUI();recalcTargets();});
-el('A1').addEventListener('input',e=>{state.A1=parseFloat(e.target.value);updateUI();updateRadii();recalcTargets();});
-el('A2').addEventListener('input',e=>{state.A2=parseFloat(e.target.value);updateUI();updateRadii();recalcTargets();});
+      // Update fluid columns (keep top faces near pistons)
+      fluidLeft().setAttribute('position',  {x:-0.35, y: base.fluidLeftY - dy1/2, z:0});
+      fluidLeft().setAttribute('height',    0.12 - dy1);
 
-const marker = document.getElementById('marker');
-marker.addEventListener('markerFound', ()=>{ if(state.mode==='ar'){ state.arReady=true; updateRadii(); recalcTargets(); }});
-marker.addEventListener('markerLost',  ()=>{ if(state.mode==='ar'){ state.arReady=false; }});
+      fluidRight().setAttribute('position', {x: 0.35, y: base.fluidRightY + dy2/2, z:0});
+      fluidRight().setAttribute('height',   0.16 + dy2);
 
-/* ---------- เริ่มต้น ---------- */
-attachToAR();          // เริ่มที่โหมด AR
-updateUI(); recalcTargets(); animate(0);
-</script>
+      // Arrow lock-min just above piston
+      const yArrow = Math.max(base.arrowYmin, base.arrowY0 - dy1*1.25);
+      arrow().setAttribute('position', {x:-0.35, y:yArrow, z:0});
+    }
+
+    // Wireframe toggle
+    let wired = false;
+    function toggleWire() {
+      wired = !wired;
+      // cylinders
+      ['#cylSmall','#cylLarge','#pistonSmall','#pistonLarge'].forEach(q=>{
+        const el = document.querySelector(q);
+        const mat = el.getObject3D('mesh')?.material;
+        if(mat){ mat.wireframe = wired; }
+        el.addEventListener('model-loaded', ()=>{
+          const m = el.getObject3D('mesh')?.material;
+          if(m) m.wireframe = wired;
+        });
+      });
+      // boxes (shell & fluid)
+      document.querySelectorAll('a-box').forEach(el=>{
+        const mat = el.getObject3D('mesh')?.material;
+        if(mat){ mat.wireframe = wired; }
+      });
+    }
+
+    // Events
+    [f1,a1,a2].forEach(el => el.addEventListener('input', update));
+    toggleFormula.addEventListener('click', ()=>{
+      const show = formula.style.display !== 'block';
+      formula.style.display = show ? 'block':'none';
+      toggleFormula.textContent = show ? 'Hide Formula':'Show Formula';
+    });
+    resetBtn.addEventListener('click', ()=>{
+      f1.value = 100; a1.value=3; a2.value=40;
+      update();
+    });
+    wireBtn.addEventListener('click', toggleWire);
+
+    // Kickoff
+    window.addEventListener('load', ()=>{ update(); });
+  </script>
 </body>
 </html>
